@@ -1,72 +1,27 @@
-#!/usr/bin/env node
-
-const { Command } = require('commander');
-const path = require('path');
-const Repository = require('./Repository');
-const { RepositoryNotFoundError } = require('./errors');
-
-const program = new Command();
-
-// Initialize repository instance
-const repo = new Repository(process.cwd());
-
 /**
- * Initialize a new repository
+ * Manage remote repositories
  */
 program
-    .command('init')
-    .description('Initialize a new repository')
-    .action(async () => {
-        try {
-            await repo.init();
-            console.log('Initialized empty repository in .dotgit/');
-        } catch (error) {
-            console.error('Error initializing repository:', error.message);
-            process.exit(1);
-        }
-    });
-
-/**
- * Create a new commit
- */
-program
-    .command('commit')
-    .description('Create a new commit')
-    .requiredOption('-m, --message <message>', 'commit message')
-    .action(async (options) => {
+    .command('remote')
+    .description('Manage remote repositories')
+    .argument('<subcommand>', 'add')
+    .argument('<name>', 'name of the remote')
+    .argument('<url>', 'url of the remote')
+    .action(async (subcommand, name, url) => {
         try {
             if (!await repo.isRepository()) {
                 throw new RepositoryNotFoundError();
             }
-            const hash = await repo.commit(options.message);
-            console.log(`[${hash}] ${options.message}`);
-        } catch (error) {
-            console.error('Error creating commit:', error.message);
-            process.exit(1);
-        }
-    });
 
-/**
- * Show repository status
- */
-program
-    .command('status')
-    .description('Show repository status')
-    .action(async () => {
-        try {
-            if (!await repo.isRepository()) {
-                throw new RepositoryNotFoundError();
+            if (subcommand === 'add') {
+                await repo.addRemote(name, url);
+                console.log(`Added remote '${name}' with url '${url}'`);
+            } else {
+                console.error('Unknown subcommand:', subcommand);
+                process.exit(1);
             }
-            const currentCommit = await repo.getCurrentCommit();
-            console.log(`On commit: ${currentCommit || '(no commits yet)'}`);
-            
-            // TODO: Show working tree status
-            
         } catch (error) {
-            console.error('Error showing status:', error.message);
+            console.error('Error managing remote:', error.message);
             process.exit(1);
         }
-    });
-
-// Parse command line arguments
-program.parse(process.argv); 
+    }); 
