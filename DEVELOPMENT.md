@@ -68,7 +68,7 @@ I implemented the core functionality through several manager classes:
 
 ### 2. Testing Strategy
 
-For each component, we developed tests in the following order:
+For each component, I developed tests in the following order:
 
 1. **Basic Functionality Tests**
    - Core operations
