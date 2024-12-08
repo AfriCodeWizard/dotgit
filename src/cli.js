@@ -195,5 +195,132 @@ program
         }
     });
 
+// Log command
+program
+    .command('log')
+    .description('Show commit logs')
+    .option('-n, --number <number>', 'Limit number of commits', parseInt)
+    .option('--oneline', 'Show each commit on a single line')
+    .option('--graph', 'Show ASCII graph of branch and merge history')
+    .action(async (options) => {
+        try {
+            await dotgit.log(options);
+        } catch (error) {
+            logger.error(error.message);
+            process.exit(1);
+        }
+    });
+
+// Tag operations
+program
+    .command('tag')
+    .description('Create, list, delete or verify tags')
+    .argument('[tagname]', 'Tag name')
+    .option('-a, --annotate', 'Create an annotated tag')
+    .option('-m, --message <message>', 'Tag message')
+    .option('-d, --delete', 'Delete tag')
+    .option('-l, --list', 'List tags')
+    .action(async (tagname, options) => {
+        try {
+            if (options.list) {
+                const tags = await dotgit.refManager.listTags();
+                tags.forEach(tag => {
+                    console.log(tag.name);
+                });
+            } else if (options.delete) {
+                await dotgit.refManager.deleteTag(tagname);
+            } else if (tagname) {
+                const head = await dotgit.refManager.getHead();
+                await dotgit.refManager.createTag(tagname, head.hash, options.message);
+            }
+        } catch (error) {
+            logger.error(error.message);
+            process.exit(1);
+        }
+    });
+
+// Reset command
+program
+    .command('reset')
+    .description('Reset current HEAD to specified state')
+    .argument('<commit>', 'Commit hash or reference')
+    .option('--hard', 'Reset working tree and index')
+    .option('--soft', 'Only reset HEAD')
+    .option('--mixed', 'Reset HEAD and index')
+    .action(async (commit, options) => {
+        try {
+            await dotgit.reset(commit, {
+                mode: options.hard ? 'hard' : options.soft ? 'soft' : 'mixed'
+            });
+        } catch (error) {
+            logger.error(error.message);
+            process.exit(1);
+        }
+    });
+
+// Stash operations
+program
+    .command('stash')
+    .description('Stash working directory changes')
+    .argument('[command]', 'Stash command (push, pop, list, drop)')
+    .option('-m, --message <message>', 'Stash message')
+    .action(async (command = 'push', options) => {
+        try {
+            switch (command) {
+                case 'push':
+                    await dotgit.stash.push(options.message);
+                    break;
+                case 'pop':
+                    await dotgit.stash.pop();
+                    break;
+                case 'list':
+                    const stashes = await dotgit.stash.list();
+                    stashes.forEach(stash => {
+                        console.log(`stash@{${stash.index}}: ${stash.message}`);
+                    });
+                    break;
+                case 'drop':
+                    await dotgit.stash.drop();
+                    break;
+                default:
+                    logger.error(`Unknown stash command: ${command}`);
+                    process.exit(1);
+            }
+        } catch (error) {
+            logger.error(error.message);
+            process.exit(1);
+        }
+    });
+
+// Clean command
+program
+    .command('clean')
+    .description('Remove untracked files from working tree')
+    .option('-n, --dry-run', 'Show what would be done')
+    .option('-f, --force', 'Force clean')
+    .option('-d, --directories', 'Remove untracked directories too')
+    .action(async (options) => {
+        try {
+            await dotgit.clean(options);
+        } catch (error) {
+            logger.error(error.message);
+            process.exit(1);
+        }
+    });
+
+// Show command
+program
+    .command('show')
+    .description('Show various types of objects')
+    .argument('<object>', 'Object to show (commit, tag, etc.)')
+    .action(async (object) => {
+        try {
+            await dotgit.show(object);
+        } catch (error) {
+            logger.error(error.message);
+            process.exit(1);
+        }
+    });
+
 // Parse command line arguments
 program.parse();
