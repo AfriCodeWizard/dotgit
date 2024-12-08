@@ -584,4 +584,214 @@ describe('DotGit', () => {
             expect(status).to.include('new file:');
         });
     });
+
+    describe('advanced branch operations', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'initial');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Initial commit');
+        });
+
+        it('should handle orphan branches', async () => {
+            await dotgit.checkout('--orphan', 'orphan');
+            
+            // Verify working directory is clean
+            const status = await dotgit.status();
+            expect(status).to.include('on orphan branch');
+            expect(status).to.include('no commits yet');
+
+            // Create commit on orphan branch
+            await fs.writeFile(path.join(testDir, 'orphan.txt'), 'content');
+            await dotgit.add(['orphan.txt']);
+            const hash = await dotgit.commit('Orphan commit');
+
+            // Verify commit has no parent
+            const commit = await dotgit.commitManager.getCommit(hash);
+            expect(commit.parent).to.be.null;
+        });
+
+        it('should handle branch renaming', async () => {
+            await dotgit.branch('old-name');
+            await dotgit.branch('-m', 'old-name', 'new-name');
+
+            const branches = await dotgit.branchManager.listBranches();
+            expect(branches.all).to.not.include('old-name');
+            expect(branches.all).to.include('new-name');
+        });
+
+        it('should track remote branches', async () => {
+            await dotgit.remote('add', 'origin', 'https://example.com/repo.git');
+            await dotgit.branch('--track', 'feature', 'origin/feature');
+
+            const config = await dotgit.configManager.get('branch.feature');
+            expect(config.remote).to.equal('origin');
+            expect(config.merge).to.equal('refs/heads/feature');
+        });
+    });
+
+    describe('advanced merge scenarios', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'initial');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Initial commit');
+        });
+
+        it('should handle octopus merge', async () => {
+            // Create multiple branches with changes
+            for (let i = 1; i <= 3; i++) {
+                await dotgit.branch(`branch${i}`);
+                await dotgit.checkout(`branch${i}`);
+                await fs.writeFile(path.join(testDir, `file${i}.txt`), `content${i}`);
+                await dotgit.add([`file${i}.txt`]);
+                await dotgit.commit(`Commit ${i}`);
+            }
+
+            // Perform octopus merge
+            await dotgit.checkout('main');
+            const result = await dotgit.merge(['branch1', 'branch2', 'branch3']);
+            
+            expect(result.success).to.be.true;
+            for (let i = 1; i <= 3; i++) {
+                const exists = await fs.access(path.join(testDir, `file${i}.txt`))
+                    .then(() => true)
+                    .catch(() => false);
+                expect(exists).to.be.true;
+            }
+        });
+
+        it('should handle merge strategies', async () => {
+            await dotgit.branch('feature');
+            await dotgit.checkout('feature');
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'feature change');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Feature change');
+
+            await dotgit.checkout('main');
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'main change');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Main change');
+
+            // Try different merge strategies
+            const strategies = ['ours', 'theirs'];
+            for (const strategy of strategies) {
+                await dotgit.reset('--hard', 'HEAD');
+                const result = await dotgit.merge('feature', { strategy });
+                expect(result.success).to.be.true;
+            }
+        });
+    });
+
+    describe('advanced stash operations', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'initial');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Initial commit');
+        });
+
+        it('should handle stash with untracked files', async () => {
+            await fs.writeFile(path.join(testDir, 'tracked.txt'), 'modified');
+            await fs.writeFile(path.join(testDir, 'untracked.txt'), 'new');
+
+            await dotgit.stash('save', '--include-untracked');
+            
+            // Verify both files are stashed
+            const status = await dotgit.status();
+            expect(status).to.include('nothing to commit');
+            
+            await dotgit.stash('pop');
+            const untrackedExists = await fs.access(path.join(testDir, 'untracked.txt'))
+                .then(() => true)
+                .catch(() => false);
+            expect(untrackedExists).to.be.true;
+        });
+
+        it('should handle stash conflicts', async () => {
+            // Create and stash changes
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'stashed');
+            await dotgit.stash('save');
+
+            // Create conflicting changes
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'conflicting');
+
+            // Try to apply stash
+            try {
+                await dotgit.stash('pop');
+            } catch (error) {
+                expect(error.message).to.include('conflict');
+            }
+
+            // Verify conflict markers
+            const content = await fs.readFile(path.join(testDir, 'test.txt'), 'utf8');
+            expect(content).to.include('<<<<<<<');
+            expect(content).to.include('>>>>>>>');
+        });
+    });
+
+    describe('advanced tag operations', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'initial');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Initial commit');
+        });
+
+        it('should handle signed tags', async () => {
+            // Mock GPG signing
+            dotgit.configManager.set('user.signingkey', 'TEST-KEY');
+            
+            await dotgit.tag('-s', 'v1.0.0', 'Signed release');
+            
+            const tags = await dotgit.refManager.listTags();
+            const tag = tags.find(t => t.name === 'v1.0.0');
+            expect(tag.signed).to.be.true;
+        });
+
+        it('should verify tags', async () => {
+            await dotgit.tag('-s', 'v1.0.0', 'Signed release');
+            
+            const verification = await dotgit.tag('-v', 'v1.0.0');
+            expect(verification).to.include('signature');
+        });
+    });
+
+    describe('worktree operations', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'initial');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Initial commit');
+        });
+
+        it('should handle multiple worktrees', async () => {
+            const worktreePath = path.join(testDir, 'worktree');
+            await dotgit.worktree('add', worktreePath, 'main');
+
+            // Verify worktree is functional
+            const worktreeFile = path.join(worktreePath, 'worktree.txt');
+            await fs.writeFile(worktreeFile, 'content');
+            
+            // Create commit in worktree
+            const worktreeDotgit = new DotGit(worktreePath);
+            await worktreeDotgit.add(['worktree.txt']);
+            await worktreeDotgit.commit('Worktree commit');
+
+            // Verify commit is visible in main repository
+            const log = await dotgit.log();
+            expect(log).to.include('Worktree commit');
+        });
+
+        it('should handle worktree removal', async () => {
+            const worktreePath = path.join(testDir, 'worktree');
+            await dotgit.worktree('add', worktreePath, 'main');
+            await dotgit.worktree('remove', worktreePath);
+
+            const exists = await fs.access(worktreePath)
+                .then(() => true)
+                .catch(() => false);
+            expect(exists).to.be.false;
+        });
+    });
 });
