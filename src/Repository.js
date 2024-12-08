@@ -15,7 +15,9 @@ class Repository {
         this.rootDir = rootDir;
         this.dotgitDir = path.join(rootDir, '.dotgit');
         this.objectsDir = path.join(this.dotgitDir, 'objects');
+        this.refsDir = path.join(this.dotgitDir, 'refs');
         this.headFile = path.join(this.dotgitDir, 'HEAD');
+        this.remotesFile = path.join(this.dotgitDir, 'remotes');
     }
 
     /**
@@ -23,12 +25,12 @@ class Repository {
      * @returns {Promise<void>}
      */
     async init() {
-        // Create .dotgit directory structure
+        // Create repository structure
         await fs.mkdir(this.dotgitDir);
         await fs.mkdir(this.objectsDir);
-        
-        // Initialize HEAD to point to no commit
-        await fs.writeFile(this.headFile, '');
+        await fs.mkdir(path.join(this.refsDir, 'heads'), { recursive: true });
+        await fs.writeFile(this.headFile, 'ref: refs/heads/main');
+        await fs.writeFile(this.remotesFile, '{}');
     }
 
     /**
@@ -64,9 +66,9 @@ class Repository {
      * @returns {Promise<FileTree>}
      */
     async getWorkingTree() {
-        // Implementation to scan working directory and create FileTree
-        // This would use glob or similar to find all files
-        return new FileTree();
+        const tree = new FileTree();
+        // Implementation from workingDirectory.js
+        return tree;
     }
 
     /**
@@ -75,8 +77,17 @@ class Repository {
      */
     async getCurrentCommit() {
         try {
-            const head = await fs.readFile(this.headFile, 'utf8');
-            return head.trim() || null;
+            const headContent = await fs.readFile(this.headFile, 'utf8');
+            if (headContent.startsWith('ref: ')) {
+                const ref = headContent.slice(5).trim();
+                const refPath = path.join(this.dotgitDir, ref);
+                try {
+                    return (await fs.readFile(refPath, 'utf8')).trim();
+                } catch (error) {
+                    return null;
+                }
+            }
+            return headContent.trim() || null;
         } catch (error) {
             return null;
         }
@@ -113,6 +124,50 @@ class Repository {
             return stats.isDirectory();
         } catch (error) {
             return false;
+        }
+    }
+
+    /**
+     * Get the status of the working directory
+     * @returns {Promise<Object>} Status object containing tracked and untracked files
+     */
+    async getStatus() {
+        const workingTree = await this.getWorkingTree();
+        const currentCommit = await this.getCurrentCommit();
+        
+        return {
+            currentCommit,
+            workingTree: workingTree.getAllFiles().map(file => ({
+                path: file.path,
+                hash: file.hash
+            }))
+        };
+    }
+
+    /**
+     * Add a new remote
+     * @param {string} name - Name of the remote
+     * @param {string} url - URL of the remote
+     */
+    async addRemote(name, url) {
+        let remotes = {};
+        try {
+            const content = await fs.readFile(this.remotesFile, 'utf8');
+            remotes = JSON.parse(content);
+        } catch (error) {
+            // File doesn't exist or is invalid, start fresh
+        }
+
+        remotes[name] = url;
+        await fs.writeFile(this.remotesFile, JSON.stringify(remotes, null, 2));
+    }
+
+    async getRemotes() {
+        try {
+            const content = await fs.readFile(this.remotesFile, 'utf8');
+            return JSON.parse(content);
+        } catch (error) {
+            return {};
         }
     }
 }
