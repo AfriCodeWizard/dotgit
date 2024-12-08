@@ -400,4 +400,188 @@ describe('DotGit', () => {
             expect(content).to.equal('initial');
         });
     });
+
+    describe('error handling', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+        });
+
+        it('should handle invalid file paths', async () => {
+            try {
+                await dotgit.add(['nonexistent.txt']);
+                expect.fail('Should have thrown error');
+            } catch (error) {
+                expect(error.message).to.include('does not exist');
+            }
+        });
+
+        it('should handle invalid branch names', async () => {
+            try {
+                await dotgit.branch('invalid/name');
+                expect.fail('Should have thrown error');
+            } catch (error) {
+                expect(error.message).to.include('invalid branch name');
+            }
+        });
+
+        it('should handle invalid commit hashes', async () => {
+            try {
+                await dotgit.checkout('1234567');
+                expect.fail('Should have thrown error');
+            } catch (error) {
+                expect(error.message).to.include('not found');
+            }
+        });
+
+        it('should handle merge with unborn HEAD', async () => {
+            try {
+                await dotgit.merge('main');
+                expect.fail('Should have thrown error');
+            } catch (error) {
+                expect(error.message).to.include('no commits yet');
+            }
+        });
+    });
+
+    describe('edge cases', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+        });
+
+        it('should handle empty directories', async () => {
+            await fs.mkdir(path.join(testDir, 'empty'));
+            await dotgit.add(['empty']);
+            const status = await dotgit.status();
+            expect(status).to.not.include('empty');
+        });
+
+        it('should handle binary files', async () => {
+            const binaryData = Buffer.from([0x00, 0x01, 0x02, 0x03]);
+            await fs.writeFile(path.join(testDir, 'binary.bin'), binaryData);
+            await dotgit.add(['binary.bin']);
+            await dotgit.commit('Add binary file');
+
+            // Modify binary file
+            await fs.writeFile(path.join(testDir, 'binary.bin'), Buffer.from([0x03, 0x02, 0x01, 0x00]));
+            const diff = await dotgit.diff();
+            expect(diff).to.include('Binary files differ');
+        });
+
+        it('should handle large files', async () => {
+            const largeContent = 'x'.repeat(1024 * 1024); // 1MB file
+            await fs.writeFile(path.join(testDir, 'large.txt'), largeContent);
+            await dotgit.add(['large.txt']);
+            await dotgit.commit('Add large file');
+
+            const status = await dotgit.status();
+            expect(status).to.include('nothing to commit');
+        });
+
+        it('should handle special characters in filenames', async () => {
+            const specialFile = 'special!@#$%^&*().txt';
+            await fs.writeFile(path.join(testDir, specialFile), 'content');
+            await dotgit.add([specialFile]);
+            await dotgit.commit('Add special file');
+
+            const status = await dotgit.status();
+            expect(status).to.include('nothing to commit');
+        });
+
+        it('should handle unicode filenames', async () => {
+            const unicodeFile = '文件.txt';
+            await fs.writeFile(path.join(testDir, unicodeFile), 'content');
+            await dotgit.add([unicodeFile]);
+            await dotgit.commit('Add unicode file');
+
+            const status = await dotgit.status();
+            expect(status).to.include('nothing to commit');
+        });
+    });
+
+    describe('concurrent operations', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+        });
+
+        it('should handle concurrent file modifications', async () => {
+            const file = path.join(testDir, 'test.txt');
+            await fs.writeFile(file, 'initial');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Initial commit');
+
+            // Simulate concurrent modifications
+            const promises = [
+                fs.writeFile(file, 'change 1'),
+                fs.writeFile(file, 'change 2')
+            ];
+            await Promise.all(promises);
+
+            const status = await dotgit.status();
+            expect(status).to.include('modified:');
+        });
+
+        it('should handle concurrent branch operations', async () => {
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'content');
+            await dotgit.add(['test.txt']);
+            await dotgit.commit('Initial commit');
+
+            // Simulate concurrent branch operations
+            const promises = [
+                dotgit.branch('branch1'),
+                dotgit.branch('branch2')
+            ];
+            await Promise.all(promises);
+
+            const branches = await dotgit.branchManager.listBranches();
+            expect(branches.all).to.include('branch1');
+            expect(branches.all).to.include('branch2');
+        });
+    });
+
+    describe('recovery scenarios', () => {
+        beforeEach(async () => {
+            await dotgit.init();
+        });
+
+        it('should recover from interrupted commit', async () => {
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'content');
+            await dotgit.add(['test.txt']);
+            
+            // Simulate interrupted commit by corrupting HEAD
+            await fs.writeFile(path.join(testDir, '.dotgit', 'HEAD'), 'corrupted');
+            
+            // Try to commit again
+            try {
+                await dotgit.commit('Test commit');
+                expect.fail('Should have thrown error');
+            } catch (error) {
+                // Fix HEAD
+                await fs.writeFile(
+                    path.join(testDir, '.dotgit', 'HEAD'),
+                    'ref: refs/heads/main'
+                );
+                // Retry commit
+                const hash = await dotgit.commit('Test commit');
+                expect(hash).to.be.a('string');
+            }
+        });
+
+        it('should handle corrupted index', async () => {
+            await fs.writeFile(path.join(testDir, 'test.txt'), 'content');
+            await dotgit.add(['test.txt']);
+            
+            // Corrupt index file
+            await fs.writeFile(
+                path.join(testDir, '.dotgit', 'index'),
+                'corrupted'
+            );
+            
+            // Force index rebuild
+            await dotgit.indexManager.load();
+            await dotgit.add(['test.txt']);
+            
+            const status = await dotgit.status();
+            expect(status).to.include('new file:');
+        });
+    });
 });
