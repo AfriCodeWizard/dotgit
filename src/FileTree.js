@@ -1,4 +1,16 @@
+const fs = require('fs').promises;
+const fsSync = require('fs');
 const path = require('path');
+const crypto = require('crypto');
+const glob = require('glob');
+const isBinary = require('is-binary-buffer');
+const ignore = require('ignore');
+const lockfile = require('proper-lockfile');
+
+// Cache for file metadata to reduce filesystem operations
+const metadataCache = new Map();
+const CACHE_TTL = 5000; // 5 seconds
+
 const FileNode = require('./FileNode');
 
 /**
