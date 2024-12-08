@@ -4,7 +4,7 @@ This document outlines the development process and architecture decisions made w
 
 ## Development Approach
 
-We followed a test-driven development (TDD) approach, implementing the project in the following order:
+I followed a test-driven development (TDD) approach, implementing the project in the following order:
 
 1. Core Classes Implementation
 2. Test Suite Development
@@ -14,7 +14,7 @@ We followed a test-driven development (TDD) approach, implementing the project i
 
 ### 1. Core Classes
 
-We implemented the core functionality through several manager classes:
+I implemented the core functionality through several manager classes:
 
 1. **Repository**
    - Base repository operations
