@@ -6,7 +6,9 @@ const FileNode = require('./FileNode');
  */
 class FileTree {
     constructor() {
-        this.files = new Map();
+        this.root = new FileNode('');
+        this.fileCount = 0;
+        this.totalSize = 0;
     }
 
     /**
