@@ -1,323 +1,173 @@
 #!/usr/bin/env node
 
 const { program } = require('commander');
-const path = require('path');
 const { DotGit } = require('./DotGit');
-const { logger } = require('./Logger');
-const packageJson = require('../package.json');
+const chalk = require('chalk');
+const path = require('path');
 
-// Initialize DotGit instance
+// Create DotGit instance for current directory
 const dotgit = new DotGit(process.cwd());
 
-// Configure CLI
 program
     .name('dotgit')
-    .description('A simplified Git implementation')
-    .version(packageJson.version);
+    .description('JavaScript implementation of Git core functionality')
+    .version('1.0.0');
 
-// Initialize repository
 program
     .command('init')
     .description('Initialize a new repository')
     .action(async () => {
         try {
             await dotgit.init();
-            logger.success('Initialized empty DotGit repository');
+            console.log(chalk.green('Initialized empty DotGit repository'));
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Add files to staging area
 program
-    .command('add')
-    .description('Add files to the staging area')
-    .argument('<files...>', 'Files to add')
+    .command('add <files...>')
+    .description('Add files to staging area')
     .action(async (files) => {
         try {
             await dotgit.add(files);
+            console.log(chalk.green(`Added ${files.length} files to staging area`));
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Commit changes
 program
     .command('commit')
-    .description('Commit staged changes')
-    .option('-m, --message <message>', 'Commit message')
+    .description('Create a new commit')
+    .option('-m, --message <message>', 'commit message')
     .action(async (options) => {
         try {
             if (!options.message) {
-                logger.error('Commit message is required');
+                console.error(chalk.red('Error: commit message is required'));
                 process.exit(1);
             }
-            await dotgit.commit(options.message);
+            const hash = await dotgit.commit(options.message);
+            console.log(chalk.green(`Created commit ${hash}`));
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Show repository status
 program
     .command('status')
     .description('Show repository status')
     .action(async () => {
         try {
-            await dotgit.status();
+            const status = await dotgit.status();
+            console.log(status);
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Branch operations
 program
-    .command('branch')
-    .description('Branch operations')
-    .argument('[name]', 'Branch name')
-    .option('-d, --delete', 'Delete branch')
-    .option('-c, --checkout', 'Checkout branch after creation')
+    .command('branch [name]')
+    .description('List or create branches')
+    .option('-d, --delete', 'delete branch')
+    .option('-m, --move <newName>', 'rename branch')
     .action(async (name, options) => {
         try {
+            if (!name) {
+                const branches = await dotgit.branchManager.listBranches();
+                branches.all.forEach(branch => {
+                    if (branch === branches.current) {
+                        console.log(chalk.green(`* ${branch}`));
+                    } else {
+                        console.log(`  ${branch}`);
+                    }
+                });
+                return;
+            }
+
             if (options.delete) {
-                await dotgit.branchManager.deleteBranch(name);
+                await dotgit.deleteBranch(name);
+                console.log(chalk.green(`Deleted branch ${name}`));
+            } else if (options.move) {
+                await dotgit.branch('-m', name, options.move);
+                console.log(chalk.green(`Renamed branch ${name} to ${options.move}`));
             } else {
-                await dotgit.branch(name, options);
+                await dotgit.branch(name);
+                console.log(chalk.green(`Created branch ${name}`));
             }
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Checkout branch or commit
 program
-    .command('checkout')
-    .description('Checkout a branch or commit')
-    .argument('<ref>', 'Branch or commit reference')
-    .option('-b, --branch', 'Create and checkout new branch')
-    .action(async (ref, options) => {
-        try {
-            if (options.branch) {
-                await dotgit.branch(ref, { checkout: true });
-            } else {
-                await dotgit.checkout(ref);
-            }
-        } catch (error) {
-            logger.error(error.message);
-            process.exit(1);
-        }
-    });
-
-// Merge branches
-program
-    .command('merge')
-    .description('Merge branches')
-    .argument('<branch>', 'Branch to merge')
-    .option('--no-ff', 'Create merge commit even if fast-forward is possible')
-    .option('--ff-only', 'Only allow fast-forward merges')
+    .command('checkout <branch>')
+    .description('Switch branches')
+    .option('-b', 'create and checkout new branch')
     .action(async (branch, options) => {
         try {
-            await dotgit.merge(branch, options);
+            if (options.b) {
+                await dotgit.branch(branch);
+            }
+            await dotgit.checkout(branch);
+            console.log(chalk.green(`Switched to branch ${branch}`));
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Remote operations
-program
-    .command('remote')
-    .description('Remote operations')
-    .argument('[command]', 'Command (add, remove)')
-    .argument('[name]', 'Remote name')
-    .argument('[url]', 'Remote URL')
-    .action(async (command, name, url) => {
-        try {
-            await dotgit.remote(command, name, url);
-        } catch (error) {
-            logger.error(error.message);
-            process.exit(1);
-        }
-    });
-
-// Show differences
 program
     .command('diff')
-    .description('Show changes between commits, commit and working tree, etc')
-    .option('--staged', 'Show staged changes')
-    .option('--cached', 'Alias for --staged')
+    .description('Show changes')
+    .option('--staged', 'show staged changes')
     .action(async (options) => {
         try {
-            await dotgit.diff(options);
+            const diff = await dotgit.diff(options);
+            console.log(diff);
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Config operations
 program
-    .command('config')
-    .description('Get and set repository options')
-    .argument('[key]', 'Config key')
-    .argument('[value]', 'Config value')
-    .option('-l, --list', 'List all config values')
-    .action(async (key, value, options) => {
+    .command('remote')
+    .description('Manage remote repositories')
+    .argument('<command>', 'remote command (add, remove, etc.)')
+    .argument('[args...]', 'command arguments')
+    .action(async (command, args) => {
         try {
-            if (options.list) {
-                const config = await dotgit.configManager.get();
-                console.log(JSON.stringify(config, null, 2));
-            } else if (key && value) {
-                const [section, name] = key.split('.');
-                await dotgit.configManager.set(section, name, value);
-            } else if (key) {
-                const [section, name] = key.split('.');
-                const value = await dotgit.configManager.get(section, name);
-                console.log(value);
-            }
+            await dotgit.remote(command, ...args);
+            console.log(chalk.green('Remote operation completed successfully'));
         } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
 
-// Debug mode
 program
-    .option('--debug', 'Enable debug mode')
-    .hook('preAction', (thisCommand) => {
-        if (thisCommand.opts().debug) {
-            logger.debugMode = true;
-        }
-    });
-
-// Log command
-program
-    .command('log')
-    .description('Show commit logs')
-    .option('-n, --number <number>', 'Limit number of commits', parseInt)
-    .option('--oneline', 'Show each commit on a single line')
-    .option('--graph', 'Show ASCII graph of branch and merge history')
-    .action(async (options) => {
+    .command('merge <branch>')
+    .description('Merge branches')
+    .option('--no-ff', 'create merge commit even if fast-forward is possible')
+    .action(async (branch, options) => {
         try {
-            await dotgit.log(options);
-        } catch (error) {
-            logger.error(error.message);
-            process.exit(1);
-        }
-    });
-
-// Tag operations
-program
-    .command('tag')
-    .description('Create, list, delete or verify tags')
-    .argument('[tagname]', 'Tag name')
-    .option('-a, --annotate', 'Create an annotated tag')
-    .option('-m, --message <message>', 'Tag message')
-    .option('-d, --delete', 'Delete tag')
-    .option('-l, --list', 'List tags')
-    .action(async (tagname, options) => {
-        try {
-            if (options.list) {
-                const tags = await dotgit.refManager.listTags();
-                tags.forEach(tag => {
-                    console.log(tag.name);
+            const result = await dotgit.merge(branch, options);
+            if (result.success) {
+                console.log(chalk.green('Merge completed successfully'));
+            } else {
+                console.log(chalk.yellow('Merge resulted in conflicts'));
+                result.conflicts.forEach(file => {
+                    console.log(chalk.yellow(`  ${file}`));
                 });
-            } else if (options.delete) {
-                await dotgit.refManager.deleteTag(tagname);
-            } else if (tagname) {
-                const head = await dotgit.refManager.getHead();
-                await dotgit.refManager.createTag(tagname, head.hash, options.message);
             }
         } catch (error) {
-            logger.error(error.message);
-            process.exit(1);
-        }
-    });
-
-// Reset command
-program
-    .command('reset')
-    .description('Reset current HEAD to specified state')
-    .argument('<commit>', 'Commit hash or reference')
-    .option('--hard', 'Reset working tree and index')
-    .option('--soft', 'Only reset HEAD')
-    .option('--mixed', 'Reset HEAD and index')
-    .action(async (commit, options) => {
-        try {
-            await dotgit.reset(commit, {
-                mode: options.hard ? 'hard' : options.soft ? 'soft' : 'mixed'
-            });
-        } catch (error) {
-            logger.error(error.message);
-            process.exit(1);
-        }
-    });
-
-// Stash operations
-program
-    .command('stash')
-    .description('Stash working directory changes')
-    .argument('[command]', 'Stash command (push, pop, list, drop)')
-    .option('-m, --message <message>', 'Stash message')
-    .action(async (command = 'push', options) => {
-        try {
-            switch (command) {
-                case 'push':
-                    await dotgit.stash.push(options.message);
-                    break;
-                case 'pop':
-                    await dotgit.stash.pop();
-                    break;
-                case 'list':
-                    const stashes = await dotgit.stash.list();
-                    stashes.forEach(stash => {
-                        console.log(`stash@{${stash.index}}: ${stash.message}`);
-                    });
-                    break;
-                case 'drop':
-                    await dotgit.stash.drop();
-                    break;
-                default:
-                    logger.error(`Unknown stash command: ${command}`);
-                    process.exit(1);
-            }
-        } catch (error) {
-            logger.error(error.message);
-            process.exit(1);
-        }
-    });
-
-// Clean command
-program
-    .command('clean')
-    .description('Remove untracked files from working tree')
-    .option('-n, --dry-run', 'Show what would be done')
-    .option('-f, --force', 'Force clean')
-    .option('-d, --directories', 'Remove untracked directories too')
-    .action(async (options) => {
-        try {
-            await dotgit.clean(options);
-        } catch (error) {
-            logger.error(error.message);
-            process.exit(1);
-        }
-    });
-
-// Show command
-program
-    .command('show')
-    .description('Show various types of objects')
-    .argument('<object>', 'Object to show (commit, tag, etc.)')
-    .action(async (object) => {
-        try {
-            await dotgit.show(object);
-        } catch (error) {
-            logger.error(error.message);
+            console.error(chalk.red(`Error: ${error.message}`));
             process.exit(1);
         }
     });
