@@ -3,7 +3,7 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { IndexManager } = require('../src/IndexManager');
+const  IndexManager  = require('../src/IndexManager');
 
 describe('IndexManager', () => {
     let testDir;

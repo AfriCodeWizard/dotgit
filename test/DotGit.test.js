@@ -3,7 +3,7 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { DotGit } = require('../src/DotGit');
+const  DotGit  = require('../src/DotGit');
 
 describe('DotGit', () => {
     let testDir;

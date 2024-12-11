@@ -3,10 +3,8 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { StatusManager } = require('../src/StatusManager');
-const { IndexManager } = require('../src/IndexManager');
-const { BranchManager } = require('../src/BranchManager');
-const { RefManager } = require('../src/RefManager');
+const  StatusManager  = require('../src/StatusManager');
+
 
 describe('StatusManager', () => {
     let testDir;

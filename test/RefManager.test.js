@@ -3,7 +3,7 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { RefManager } = require('../src/RefManager');
+const  RefManager  = require('../src/RefManager');
 
 describe('RefManager', () => {
     let testDir;

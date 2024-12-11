@@ -3,7 +3,7 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { ConfigManager } = require('../src/ConfigManager');
+const  ConfigManager  = require('../src/ConfigManager');
 
 describe('ConfigManager', () => {
     let testDir;

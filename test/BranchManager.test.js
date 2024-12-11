@@ -3,8 +3,12 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { BranchManager } = require('../src/BranchManager');
+const BranchManager = require('../src/BranchManager');
 const { InvalidHeadError } = require('../src/errors');
+
+const TEST_BRANCH = 'test-branch';
+const MAIN_BRANCH = 'main';
+const COMMIT_HASH = '1234567890abcdef';
 
 describe('BranchManager', () => {
     let testDir;
@@ -27,19 +31,18 @@ describe('BranchManager', () => {
 
     describe('createBranch()', () => {
         it('should create a new branch', async () => {
-            const commitHash = '1234567890abcdef';
-            await branchManager.createBranch('test-branch', commitHash);
+            await branchManager.createBranch(TEST_BRANCH, COMMIT_HASH);
 
-            const branchPath = path.join(dotgitDir, 'refs', 'heads', 'test-branch');
+            const branchPath = path.join(dotgitDir, 'refs', 'heads', TEST_BRANCH);
             const content = await fs.readFile(branchPath, 'utf8');
-            expect(content).to.equal(commitHash);
+            expect(content).to.equal(COMMIT_HASH);
         });
 
         it('should throw error if branch already exists', async () => {
-            await branchManager.createBranch('test-branch', '1234567890abcdef');
+            await branchManager.createBranch(TEST_BRANCH, COMMIT_HASH);
 
             try {
-                await branchManager.createBranch('test-branch', 'fedcba0987654321');
+                await branchManager.createBranch(TEST_BRANCH, COMMIT_HASH);
                 expect.fail('Should have thrown error');
             } catch (error) {
                 expect(error.message).to.include('already exists');
@@ -48,7 +51,7 @@ describe('BranchManager', () => {
 
         it('should throw error if branch name is invalid', async () => {
             try {
-                await branchManager.createBranch('', '1234567890abcdef');
+                await branchManager.createBranch('', COMMIT_HASH);
                 expect.fail('Should have thrown error');
             } catch (error) {
                 expect(error.message).to.include('required');
@@ -84,8 +87,8 @@ describe('BranchManager', () => {
 
     describe('listBranches()', () => {
         it('should list all branches', async () => {
-            await branchManager.createBranch('main', '1234567890abcdef');
-            await branchManager.createBranch('develop', 'fedcba0987654321');
+            await branchManager.createBranch(MAIN_BRANCH, COMMIT_HASH);
+            await branchManager.createBranch('develop', COMMIT_HASH);
             await fs.writeFile(
                 path.join(dotgitDir, 'HEAD'),
                 'ref: refs/heads/main'
@@ -107,8 +110,8 @@ describe('BranchManager', () => {
 
     describe('switchBranch()', () => {
         it('should update HEAD to point to new branch', async () => {
-            await branchManager.createBranch('main', '1234567890abcdef');
-            await branchManager.createBranch('develop', 'fedcba0987654321');
+            await branchManager.createBranch(MAIN_BRANCH, COMMIT_HASH);
+            await branchManager.createBranch('develop', COMMIT_HASH);
 
             await branchManager.switchBranch('develop');
 
@@ -131,30 +134,30 @@ describe('BranchManager', () => {
 
     describe('deleteBranch()', () => {
         it('should delete branch', async () => {
-            await branchManager.createBranch('test-branch', '1234567890abcdef');
-            await branchManager.createBranch('main', 'fedcba0987654321');
+            await branchManager.createBranch(TEST_BRANCH, COMMIT_HASH);
+            await branchManager.createBranch(MAIN_BRANCH, COMMIT_HASH);
             await fs.writeFile(
                 path.join(dotgitDir, 'HEAD'),
                 'ref: refs/heads/main'
             );
 
-            await branchManager.deleteBranch('test-branch');
+            await branchManager.deleteBranch(TEST_BRANCH);
 
             const branchExists = await fs.access(
-                path.join(dotgitDir, 'refs', 'heads', 'test-branch')
+                path.join(dotgitDir, 'refs', 'heads', TEST_BRANCH)
             ).then(() => true).catch(() => false);
             expect(branchExists).to.be.false;
         });
 
         it('should not allow deleting current branch', async () => {
-            await branchManager.createBranch('main', '1234567890abcdef');
+            await branchManager.createBranch(MAIN_BRANCH, COMMIT_HASH);
             await fs.writeFile(
                 path.join(dotgitDir, 'HEAD'),
                 'ref: refs/heads/main'
             );
 
             try {
-                await branchManager.deleteBranch('main');
+                await branchManager.deleteBranch(MAIN_BRANCH);
                 expect.fail('Should have thrown error');
             } catch (error) {
                 expect(error.message).to.include('currently checked out');

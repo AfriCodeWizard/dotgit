@@ -3,7 +3,7 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { DiffManager } = require('../src/DiffManager');
+const  DiffManager  = require('../src/DiffManager');
 
 describe('DiffManager', () => {
     let testDir;

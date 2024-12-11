@@ -3,8 +3,7 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
-const { RemoteManager } = require('../src/RemoteManager');
-const { ConfigManager } = require('../src/ConfigManager');
+const  RemoteManager  = require('../src/RemoteManager');
 
 describe('RemoteManager', () => {
     let testDir;
