@@ -13,7 +13,9 @@ class Logger {
         this.debugMode = options.debug || false;
         this.quiet = options.quiet || false;
         this.logLevel = options.logLevel || 'info';
-        
+        this.logToFile = options.logToFile || false;
+        this.filePath = options.filePath || 'log.txt'; // Default file path for logs
+
         // Log levels: debug < info < warn < error
         this.levels = {
             debug: 0,
@@ -23,37 +25,56 @@ class Logger {
         };
     }
 
+    // Utility method to log messages to a file
+    logToFileMethod(message) {
+        if (this.logToFile) {
+            const fs = require('fs');
+            const timestamp = new Date().toISOString();
+            fs.appendFileSync(this.filePath, `[${timestamp}] ${message}\n`);
+        }
+    }
+
     shouldLog(level) {
         return !this.quiet && this.levels[level] >= this.levels[this.logLevel];
     }
 
+    // Helper method to format log messages with timestamp and color
+    logMessage(level, color, message, ...args) {
+        const timestamp = new Date().toISOString();
+        const logMessage = `${color}[${level.toUpperCase()}] ${timestamp} ${colors.reset}${message}`;
+        if (this.shouldLog(level)) {
+            console.log(logMessage, ...args);
+            this.logToFileMethod(logMessage);
+        }
+    }
+
     debug(message, ...args) {
         if (this.debugMode && this.shouldLog('debug')) {
-            console.log(colors.cyan + '[DEBUG] ' + colors.reset + message, ...args);
+            this.logMessage('debug', colors.cyan, message, ...args);
         }
     }
 
     info(message, ...args) {
         if (this.shouldLog('info')) {
-            console.log(colors.green + '[INFO] ' + colors.reset + message, ...args);
+            this.logMessage('info', colors.green, message, ...args);
         }
     }
 
     warn(message, ...args) {
         if (this.shouldLog('warn')) {
-            console.warn(colors.yellow + '[WARN] ' + colors.reset + message, ...args);
+            this.logMessage('warn', colors.yellow, message, ...args);
         }
     }
 
     error(message, ...args) {
         if (this.shouldLog('error')) {
-            console.error(colors.red + '[ERROR] ' + colors.reset + message, ...args);
+            this.logMessage('error', colors.red, message, ...args);
         }
     }
 
     success(message, ...args) {
         if (this.shouldLog('info')) {
-            console.log(colors.green + '[SUCCESS] ' + colors.reset + message, ...args);
+            this.logMessage('success', colors.green, message, ...args);
         }
     }
 
