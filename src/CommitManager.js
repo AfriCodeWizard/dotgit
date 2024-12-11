@@ -74,6 +74,18 @@ class CommitManager {
     }
 
     async getCommitDiff(oldCommitId, newCommitId) {
+        // Handle the case where oldCommitId is null (initial commit)
+        if (oldCommitId === null) {
+            const newCommit = await this.getCommit(newCommitId);
+            const newTree = newCommit.tree;
+
+            return {
+                added: Object.keys(newTree),
+                modified: [],
+                deleted: []
+            };
+        }
+
         // Validate that both commit IDs are strings
         if (typeof oldCommitId !== 'string' || typeof newCommitId !== 'string') {
             throw new TypeError('Commit IDs must be strings');
