@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const isBinary = require('is-binary-buffer');
+const { logger } = require('./Logger'); // Assuming you have a logger utility
 
 /**
  * Represents a file in the working directory
@@ -15,6 +16,11 @@ class FileNode {
         this.content = content;
         this.hash = this.calculateHash();
         this.isBinary = isBinary(content);
+
+        // Log file processing
+        logger.debug(`FileNode created for: ${this.path}`);
+        logger.debug(`Is Binary: ${this.isBinary ? 'Yes' : 'No'}`);
+        logger.debug(`File Hash: ${this.hash}`);
     }
 
     /**
@@ -33,8 +39,13 @@ class FileNode {
      * @returns {Promise<FileNode>}
      */
     static async fromPath(path) {
-        const content = await fs.readFile(path);
-        return new FileNode(path, content);
+        try {
+            const content = await fs.readFile(path);
+            return new FileNode(path, content);
+        } catch (error) {
+            logger.error(`Failed to read file at ${path}: ${error.message}`);
+            throw new Error(`Failed to read file at ${path}: ${error.message}`);
+        }
     }
 
     /**
@@ -46,4 +57,4 @@ class FileNode {
     }
 }
 
-module.exports = FileNode; 
+module.exports = FileNode;
