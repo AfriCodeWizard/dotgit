@@ -2,6 +2,14 @@ const fs = require('fs').promises;
 const path = require('path');
 const { logger } = require('./Logger');
 
+// Custom error for failed file reading
+class FileNotFoundError extends Error {
+    constructor(filePath) {
+        super(`File not found: ${filePath}`);
+        this.name = 'FileNotFoundError';
+    }
+}
+
 class DiffManager {
     constructor(dotgitPath) {
         this.dotgitPath = dotgitPath;
@@ -216,7 +224,7 @@ class DiffManager {
         try {
             return await fs.readFile(objectPath, 'utf8');
         } catch (error) {
-            throw new Error(`Failed to read object ${hash}: ${error.message}`);
+            throw new FileNotFoundError(hash);
         }
     }
 }
