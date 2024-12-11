@@ -4,14 +4,6 @@ const crypto = require('crypto');
 const { logger } = require('./Logger');
 const { CommitNotFoundError, ObjectNotFoundError } = require('./errors');
 
-// Custom error for missing objects
-class ObjectNotFoundError extends Error {
-    constructor(hash) {
-        super(`Object ${hash} not found`);
-        this.name = 'ObjectNotFoundError';
-    }
-}
-
 class CommitManager {
     constructor(dotgitPath) {
         this.dotgitPath = dotgitPath;
