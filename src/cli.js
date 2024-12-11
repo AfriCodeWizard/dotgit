@@ -13,6 +13,7 @@ program
     .description('JavaScript implementation of Git core functionality')
     .version('1.0.0');
 
+// Initialize repository
 program
     .command('init')
     .description('Initialize a new repository')
@@ -26,6 +27,7 @@ program
         }
     });
 
+// Add files to staging area
 program
     .command('add <files...>')
     .description('Add files to staging area')
@@ -39,6 +41,7 @@ program
         }
     });
 
+// Create a new commit
 program
     .command('commit')
     .description('Create a new commit')
@@ -57,6 +60,7 @@ program
         }
     });
 
+// Show repository status
 program
     .command('status')
     .description('Show repository status')
@@ -70,6 +74,7 @@ program
         }
     });
 
+// List or create branches
 program
     .command('branch [name]')
     .description('List or create branches')
@@ -105,6 +110,7 @@ program
         }
     });
 
+// Switch branches
 program
     .command('checkout <branch>')
     .description('Switch branches')
@@ -122,6 +128,7 @@ program
         }
     });
 
+// Show changes
 program
     .command('diff')
     .description('Show changes')
@@ -136,6 +143,7 @@ program
         }
     });
 
+// Manage remote repositories
 program
     .command('remote')
     .description('Manage remote repositories')
@@ -151,6 +159,7 @@ program
         }
     });
 
+// Merge branches
 program
     .command('merge <branch>')
     .description('Merge branches')
