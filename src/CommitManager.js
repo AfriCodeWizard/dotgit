@@ -2,7 +2,15 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 const { logger } = require('./Logger');
-const { CommitNotFoundError } = require('./errors');
+const { CommitNotFoundError, ObjectNotFoundError } = require('./errors');
+
+// Custom error for missing objects
+class ObjectNotFoundError extends Error {
+    constructor(hash) {
+        super(`Object ${hash} not found`);
+        this.name = 'ObjectNotFoundError';
+    }
+}
 
 class CommitManager {
     constructor(dotgitPath) {
@@ -48,11 +56,12 @@ class CommitManager {
         }
     }
 
-    async getCommitHistory(startHash) {
+    async getCommitHistory(startHash, maxDepth = 100) {
         const history = [];
         let currentHash = startHash;
+        let depth = 0;
 
-        while (currentHash) {
+        while (currentHash && depth < maxDepth) {
             try {
                 const commit = await this.getCommit(currentHash);
                 history.push({
@@ -60,6 +69,7 @@ class CommitManager {
                     ...commit
                 });
                 currentHash = commit.parent;
+                depth++;
             } catch (error) {
                 if (error instanceof CommitNotFoundError) {
                     break;
@@ -110,14 +120,15 @@ class CommitManager {
         try {
             return await fs.readFile(objectPath, 'utf8');
         } catch (error) {
-            throw new Error(`Object ${hash} not found`);
+            throw new ObjectNotFoundError(hash);
         }
     }
 
     formatCommitMessage(commit, hash) {
         const shortHash = hash.slice(0, 7);
         const date = new Date(commit.timestamp).toLocaleString();
-        return `commit ${shortHash}\nAuthor: ${commit.author}\nDate: ${date}\n\n    ${commit.message}\n`;
+        const message = commit.message || '(no commit message)';
+        return `commit ${shortHash}\nAuthor: ${commit.author}\nDate: ${date}\n\n    ${message}\n`;
     }
 
     async printCommitLog(startHash, options = {}) {
