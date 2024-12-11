@@ -37,83 +37,49 @@ class DiffManager {
         let newIndex = 0;
 
         while (oldIndex < oldLines.length || newIndex < newLines.length) {
-            if (oldIndex >= oldLines.length) {
-                // Rest of newLines are additions
+            if (oldIndex < oldLines.length && newIndex < newLines.length) {
+                if (oldLines[oldIndex] === newLines[newIndex]) {
+                    // Lines are identical
+                    changes.push({
+                        type: 'same',
+                        oldStart: oldIndex,
+                        oldLines: [oldLines[oldIndex]],
+                        newStart: newIndex,
+                        newLines: [newLines[newIndex]]
+                    });
+                    oldIndex++;
+                    newIndex++;
+                } else {
+                    // Lines are different, treat as modification
+                    changes.push({
+                        type: 'modify',
+                        oldStart: oldIndex,
+                        oldLines: [oldLines[oldIndex]],
+                        newStart: newIndex,
+                        newLines: [newLines[newIndex]]
+                    });
+                    oldIndex++;
+                    newIndex++;
+                }
+            } else if (oldIndex < oldLines.length) {
+                // Remaining old lines are deletions
+                changes.push({
+                    type: 'delete',
+                    oldStart: oldIndex,
+                    oldLines: [oldLines[oldIndex]],
+                    newStart: newIndex,
+                    newLines: 0
+                });
+                oldIndex++;
+            } else if (newIndex < newLines.length) {
+                // Remaining new lines are additions
                 changes.push({
                     type: 'add',
                     oldStart: oldIndex,
                     oldLines: 0,
                     newStart: newIndex,
-                    newLines: newLines.slice(newIndex)
-                });
-                break;
-            }
-
-            if (newIndex >= newLines.length) {
-                // Rest of oldLines are deletions
-                changes.push({
-                    type: 'delete',
-                    oldStart: oldIndex,
-                    oldLines: oldLines.slice(oldIndex),
-                    newStart: newIndex,
-                    newLines: 0
-                });
-                break;
-            }
-
-            if (oldLines[oldIndex] === newLines[newIndex]) {
-                // Lines are identical
-                changes.push({
-                    type: 'same',
-                    oldStart: oldIndex,
-                    oldLines: [oldLines[oldIndex]],
-                    newStart: newIndex,
                     newLines: [newLines[newIndex]]
                 });
-                oldIndex++;
-                newIndex++;
-                continue;
-            }
-
-            // Look ahead for matching lines
-            const matchResult = this.findNextMatch(
-                oldLines.slice(oldIndex),
-                newLines.slice(newIndex)
-            );
-
-            if (matchResult.found) {
-                if (matchResult.oldOffset > 0) {
-                    changes.push({
-                        type: 'delete',
-                        oldStart: oldIndex,
-                        oldLines: oldLines.slice(oldIndex, oldIndex + matchResult.oldOffset),
-                        newStart: newIndex,
-                        newLines: 0
-                    });
-                }
-
-                if (matchResult.newOffset > 0) {
-                    changes.push({
-                        type: 'add',
-                        oldStart: oldIndex + matchResult.oldOffset,
-                        oldLines: 0,
-                        newStart: newIndex,
-                        newLines: newLines.slice(newIndex, newIndex + matchResult.newOffset)
-                    });
-                }
-
-                oldIndex += matchResult.oldOffset;
-                newIndex += matchResult.newOffset;
-            } else {
-                // No match found, treat as modification
-                changes.push({
-                    type: 'modify',
-                    oldStart: oldIndex,
-                    oldLines: [oldLines[oldIndex]],
-                    newStart: newIndex,
-                    newLines: [newLines[newIndex]]
-                });
-                oldIndex++;
                 newIndex++;
             }
         }
