@@ -113,46 +113,48 @@ class DiffManager {
         } = options;
 
         let output = [];
-        let lastPrinted = -1;
+        let lastChangeIndex = -1;
 
         for (let i = 0; i < changes.length; i++) {
             const change = changes[i];
 
             if (change.type === 'same') {
-                // In unified diff, only show context lines around changes
+                // Handle context lines around changes
                 if (unified) {
-                    const nextChange = changes.slice(i + 1)
-                        .find(c => c.type !== 'same');
-                    
-                    if (nextChange && 
-                        nextChange.oldStart - (change.oldStart + change.oldLines.length) <= context * 2) {
-                        output.push(this.formatLine(' ', change.oldLines[0], colorize));
-                        lastPrinted = change.oldStart;
+                    const isBeforeChange =
+                        i > 0 && changes[i - 1].type !== 'same';
+                    const isAfterChange =
+                        i < changes.length - 1 && changes[i + 1].type !== 'same';
+
+                    if (isBeforeChange || isAfterChange) {
+                        const inContextRange =
+                            lastChangeIndex === -1 ||
+                            i - lastChangeIndex <= context;
+
+                        if (inContextRange) {
+                            output.push(this.formatLine(' ', change.oldLines[0], colorize));
+                            lastChangeIndex = i;
+                        }
                     }
                 } else {
                     output.push(this.formatLine(' ', change.oldLines[0], colorize));
                 }
-                continue;
-            }
+            } else {
+                // Handle non-context changes
+                if (change.type === 'delete' || change.type === 'modify') {
+                    change.oldLines.forEach(line => {
+                        output.push(this.formatLine('-', line, colorize));
+                    });
+                }
 
-            // Add separator if there's a gap in line numbers
-            if (lastPrinted !== -1 && change.oldStart - lastPrinted > context * 2) {
-                output.push('...');
-            }
+                if (change.type === 'add' || change.type === 'modify') {
+                    change.newLines.forEach(line => {
+                        output.push(this.formatLine('+', line, colorize));
+                    });
+                }
 
-            if (change.type === 'delete' || change.type === 'modify') {
-                change.oldLines.forEach(line => {
-                    output.push(this.formatLine('-', line, colorize));
-                });
+                lastChangeIndex = i; // Update lastChangeIndex for context tracking
             }
-
-            if (change.type === 'add' || change.type === 'modify') {
-                change.newLines.forEach(line => {
-                    output.push(this.formatLine('+', line, colorize));
-                });
-            }
-
-            lastPrinted = change.oldStart + (change.oldLines?.length || 0);
         }
 
         return output.join('\n');
