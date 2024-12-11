@@ -2,6 +2,14 @@ const fs = require('fs').promises;
 const path = require('path');
 const { logger } = require('./Logger');
 
+// Custom error for missing config
+class ConfigNotLoadedError extends Error {
+    constructor() {
+        super('Config not loaded');
+        this.name = 'ConfigNotLoadedError';
+    }
+}
+
 class ConfigManager {
     constructor(dotgitPath) {
         this.configPath = path.join(dotgitPath, 'config');
@@ -25,10 +33,7 @@ class ConfigManager {
 
     async save() {
         try {
-            await fs.writeFile(
-                this.configPath,
-                JSON.stringify(this.config, null, 2)
-            );
+            await fs.writeFile(this.configPath, JSON.stringify(this.config, null, 2));
         } catch (error) {
             throw new Error(`Failed to save config: ${error.message}`);
         }
@@ -65,7 +70,7 @@ class ConfigManager {
 
     get(section, key) {
         if (!this.config) {
-            throw new Error('Config not loaded');
+            throw new ConfigNotLoadedError();
         }
 
         if (!section) {
@@ -81,7 +86,7 @@ class ConfigManager {
 
     async set(section, key, value) {
         if (!this.config) {
-            throw new Error('Config not loaded');
+            throw new ConfigNotLoadedError();
         }
 
         if (!section || !key) {
@@ -95,7 +100,7 @@ class ConfigManager {
 
         // Update value
         this.config[section][key] = value;
-        
+
         // Save changes
         await this.save();
         logger.debug(`Updated config: ${section}.${key} = ${value}`);
@@ -103,7 +108,7 @@ class ConfigManager {
 
     async unset(section, key) {
         if (!this.config) {
-            throw new Error('Config not loaded');
+            throw new ConfigNotLoadedError();
         }
 
         if (!section || !key) {
@@ -112,17 +117,17 @@ class ConfigManager {
 
         if (this.config[section] && this.config[section][key] !== undefined) {
             delete this.config[section][key];
-            
+
             // Remove empty sections
             if (Object.keys(this.config[section]).length === 0) {
                 delete this.config[section];
             }
-            
+
             await this.save();
             logger.debug(`Removed config: ${section}.${key}`);
             return true;
         }
-        
+
         return false;
     }
 
