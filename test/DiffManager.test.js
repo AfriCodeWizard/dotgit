@@ -64,10 +64,11 @@ describe('DiffManager', () => {
             const newLines = ['a', 'x', 'c'];
 
             const changes = diffManager.computeDiff(oldLines, newLines);
-            expect(changes).to.have.lengthOf(3);
-            expect(changes[0].type).to.equal('same');
-            expect(changes[1].type).to.equal('modify');
-            expect(changes[2].type).to.equal('same');
+            console.log('Computed changes:', changes); // Debugging output
+            expect(changes).to.have.lengthOf(3); // Adjusted expected length
+            expect(changes[0].type).to.equal('same'); // 'a'
+            expect(changes[1].type).to.equal('modify'); // 'b' -> 'x'
+            expect(changes[2].type).to.equal('same'); // 'c'
         });
 
         it('should handle completely different content', () => {
