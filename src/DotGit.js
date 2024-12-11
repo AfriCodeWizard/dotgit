@@ -30,6 +30,7 @@ class DotGit {
         this.statusManager = new StatusManager(this.dotgitPath);
     }
 
+    // Initialize the repository
     async init() {
         try {
             // Check if repository already exists
@@ -60,6 +61,7 @@ class DotGit {
         }
     }
 
+    // Add files to staging area
     async add(patterns) {
         try {
             await this.indexManager.load();
@@ -77,6 +79,7 @@ class DotGit {
         }
     }
 
+    // Commit changes
     async commit(message) {
         try {
             await this.indexManager.load();
@@ -96,6 +99,7 @@ class DotGit {
         }
     }
 
+    // Show repository status
     async status() {
         try {
             const status = await this.statusManager.getStatus();
@@ -106,6 +110,7 @@ class DotGit {
         }
     }
 
+    // Branch management (create or list)
     async branch(name, options = {}) {
         try {
             if (name) {
@@ -123,6 +128,7 @@ class DotGit {
         }
     }
 
+    // Switch branches
     async checkout(ref) {
         try {
             await this.indexManager.load();
@@ -140,6 +146,7 @@ class DotGit {
         }
     }
 
+    // Merge branches
     async merge(branch, options = {}) {
         try {
             const result = await this.mergeManager.merge(branch, options);
@@ -155,6 +162,7 @@ class DotGit {
         }
     }
 
+    // Manage remote repositories
     async remote(command, name, url) {
         try {
             switch (command) {
@@ -174,6 +182,7 @@ class DotGit {
         }
     }
 
+    // Show file differences
     async diff(options = {}) {
         try {
             const changes = await this.diffManager.getChanges(options);
@@ -185,11 +194,14 @@ class DotGit {
     }
 
     // Helper methods
+
+    // Expand file patterns (e.g., '*.js')
     async expandFilePatterns(patterns) {
-        // Implementation for expanding file patterns (e.g., *.js)
-        return [];
+        // Implementation for expanding file patterns (this is a placeholder)
+        return patterns; // Ideally this would return expanded file paths based on patterns
     }
 
+    // Check if there are uncommitted changes in the index
     hasUncommittedChanges(status) {
         return (
             status.staged.new.length > 0 ||
@@ -200,6 +212,7 @@ class DotGit {
         );
     }
 
+    // Print branches in a human-readable format
     printBranches(branches) {
         branches.forEach(branch => {
             const prefix = branch.current ? '* ' : '  ';
@@ -207,6 +220,7 @@ class DotGit {
         });
     }
 
+    // Print remotes in a human-readable format
     printRemotes(remotes) {
         remotes.forEach(remote => {
             console.log(`${remote.name}\t${remote.url}`);
