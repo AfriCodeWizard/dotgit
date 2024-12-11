@@ -43,9 +43,20 @@ class CommitNotFoundError extends DotGitError {
     }
 }
 
+/**
+ * Error thrown when an object cannot be found
+ */
+class ObjectNotFoundError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'ObjectNotFoundError';
+    }
+}
+
 module.exports = {
     DotGitError,
     RepositoryNotFoundError,
     InvalidHeadError,
-    CommitNotFoundError
+    CommitNotFoundError,
+    ObjectNotFoundError
 };

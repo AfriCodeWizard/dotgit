@@ -1,14 +1,20 @@
 const fs = require('fs').promises;
 const isBinary = require('is-binary-buffer');
 const crypto = require('crypto');
+const { logger } = require('./Logger');
 
+/**
+ * Handle file content: reads and detects if the file is binary or text.
+ * @param {string} filePath - Path to the file
+ * @returns {object} - The content of the file, binary flag, size, encoding, and MIME type.
+ */
 async function handleFileContent(filePath) {
     try {
         // Read file as buffer
         const content = await fs.readFile(filePath);
         const isBinaryResult = detectBinaryContent(content);
         
-        // Add debug logging
+        // Log file processing details
         logger.debug(`Processing file: ${filePath}`);
         logger.debug(`File size: ${content.length} bytes`);
         logger.debug(`Detected as binary: ${isBinaryResult.binary}`);
@@ -27,29 +33,27 @@ async function handleFileContent(filePath) {
     }
 }
 
+/**
+ * Detect if the content is binary or text, and identify MIME type.
+ * @param {Buffer} buffer - The file content buffer
+ * @returns {object} - Whether the content is binary and its MIME type
+ */
 function detectBinaryContent(buffer) {
-    // Primary check using is-binary-buffer
     const binaryCheck = isBinary(buffer);
     
     // Secondary checks for enhanced reliability
     const secondaryChecks = {
-        // Check for null bytes (common in binary files)
         hasNullBytes: buffer.includes(0x00),
-        
-        // Check for high concentration of non-printable characters
         hasHighNonPrintable: (() => {
             const nonPrintable = buffer.filter(byte => (byte < 32 && ![9, 10, 13].includes(byte)) || byte >= 127);
             return nonPrintable.length / buffer.length > 0.3;
         })(),
-        
-        // Check file signature/magic numbers for common binary formats
         hasKnownBinarySignature: checkBinarySignature(buffer)
     };
 
     // Determine MIME type
     const mimeType = determineMimeType(buffer);
 
-    // Combine all checks for final decision
     const isBinaryFile = binaryCheck || 
                         secondaryChecks.hasNullBytes ||
                         secondaryChecks.hasHighNonPrintable ||
@@ -65,19 +69,19 @@ function detectBinaryContent(buffer) {
     };
 }
 
+/**
+ * Check for binary file signatures (magic numbers) for common formats.
+ * @param {Buffer} buffer - The file content buffer
+ * @returns {boolean} - Whether a known binary signature is found
+ */
 function checkBinarySignature(buffer) {
-    // Common file signatures (magic numbers)
     const signatures = {
-        // Images
         PNG: [0x89, 0x50, 0x4E, 0x47],
         JPEG: [0xFF, 0xD8, 0xFF],
         GIF: [0x47, 0x49, 0x46],
-        // Archives
         ZIP: [0x50, 0x4B, 0x03, 0x04],
         GZIP: [0x1F, 0x8B],
-        // PDFs
         PDF: [0x25, 0x50, 0x44, 0x46],
-        // Executables
         EXE: [0x4D, 0x5A]
     };
 
@@ -91,8 +95,12 @@ function checkBinarySignature(buffer) {
     return false;
 }
 
+/**
+ * Determine MIME type based on the file's signature (magic numbers).
+ * @param {Buffer} buffer - The file content buffer
+ * @returns {string} - The MIME type of the file
+ */
 function determineMimeType(buffer) {
-    // Basic MIME type detection based on file signatures
     const signatures = {
         '89504E47': 'image/png',
         'FFD8FF': 'image/jpeg',
@@ -103,10 +111,8 @@ function determineMimeType(buffer) {
         '4D5A': 'application/x-msdownload'
     };
 
-    // Convert first few bytes to hex string
     const hex = buffer.slice(0, 4).toString('hex').toUpperCase();
 
-    // Check against known signatures
     for (const [signature, mimeType] of Object.entries(signatures)) {
         if (hex.startsWith(signature)) {
             return mimeType;
@@ -116,6 +122,11 @@ function determineMimeType(buffer) {
     return 'application/octet-stream';
 }
 
+/**
+ * Write content to a file, validating binary and text content.
+ * @param {string} filePath - Path where to write the file
+ * @param {object} fileData - The file data, including content and binary flag
+ */
 async function writeFileContent(filePath, fileData) {
     if (!fileData || typeof fileData.binary !== 'boolean') {
         throw new Error(`Invalid file data for ${filePath}`);
@@ -124,13 +135,10 @@ async function writeFileContent(filePath, fileData) {
     try {
         let content;
         if (fileData.binary) {
-            // Add additional validation for base64 content
             if (!/^[A-Za-z0-9+/]*={0,2}$/.test(fileData.content)) {
                 throw new Error('Invalid base64 encoding');
             }
             content = Buffer.from(fileData.content, 'base64');
-            
-            // Verify size after decoding
             if (content.length !== fileData.size) {
                 logger.error(`Size mismatch: expected ${fileData.size}, got ${content.length}`);
                 throw new Error('Size mismatch after base64 decoding');
@@ -141,16 +149,16 @@ async function writeFileContent(filePath, fileData) {
 
         // Create directory if it doesn't exist
         await fs.mkdir(path.dirname(filePath), { recursive: true });
-        
+
         // Write file
         await fs.writeFile(filePath, content);
-        
+
         // Verify written file
         const verificationBuffer = await fs.readFile(filePath);
         if (verificationBuffer.length !== fileData.size) {
             throw new Error('File verification failed: size mismatch');
         }
-        
+
         logger.debug(`Successfully wrote file: ${filePath}`);
         logger.debug(`Size: ${content.length} bytes`);
         logger.debug(`Binary: ${fileData.binary}`);
