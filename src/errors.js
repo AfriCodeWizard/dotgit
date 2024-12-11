@@ -5,6 +5,9 @@ class DotGitError extends Error {
     constructor(message) {
         super(message);
         this.name = 'DotGitError';
+        if (Error.captureStackTrace) {
+            Error.captureStackTrace(this, DotGitError);
+        }
     }
 }
 
@@ -13,7 +16,8 @@ class DotGitError extends Error {
  */
 class RepositoryNotFoundError extends DotGitError {
     constructor(dir = '.') {
-        super(`Not a repository: .dotgit directory not found in ${dir}`);
+        const message = `Not a repository: .dotgit directory not found in ${dir}`;
+        super(message);
         this.name = 'RepositoryNotFoundError';
     }
 }
@@ -33,7 +37,8 @@ class InvalidHeadError extends DotGitError {
  */
 class CommitNotFoundError extends DotGitError {
     constructor(hash) {
-        super(`Commit ${hash} not found`);
+        const message = `Commit ${hash} not found`;
+        super(message);
         this.name = 'CommitNotFoundError';
     }
 }
