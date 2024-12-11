@@ -11,8 +11,8 @@ class BranchManager {
     }
 
     async createBranch(branchName, startPoint) {
-        if (!branchName || typeof branchName !== 'string') {
-            throw new Error('Branch name is required');
+        if (!branchName || typeof branchName !== 'string' || branchName.trim() === '') {
+            throw new Error('Branch name is required and cannot be empty');
         }
 
         const branchPath = path.join(this.refsPath, branchName);
