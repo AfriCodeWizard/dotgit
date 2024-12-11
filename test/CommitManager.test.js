@@ -156,4 +156,28 @@ describe('CommitManager', () => {
             await commitManager.printCommitLog(hash2, { showDiff: true });
         });
     });
+
+    describe('getObject()', () => {
+        it('should throw an error if objectId is not a string', async () => {
+            try {
+                await commitManager.getObject(123); // Passing a number instead of a string
+                expect.fail('Should have thrown an error');
+            } catch (error) {
+                expect(error).to.be.instanceOf(TypeError);
+                expect(error.message).to.include('Invalid objectId type. Expected string');
+            }
+        });
+    });
+
+    describe('getCommitDiff()', () => {
+        it('should throw an error if commit IDs are not strings', async () => {
+            try {
+                await commitManager.getCommitDiff(123, 'validCommitId'); // Passing a number as oldCommitId
+                expect.fail('Should have thrown an error');
+            } catch (error) {
+                expect(error).to.be.instanceOf(TypeError);
+                expect(error.message).to.include('Commit IDs must be strings');
+            }
+        });
+    });
 });

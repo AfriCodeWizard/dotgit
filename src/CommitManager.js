@@ -73,9 +73,13 @@ class CommitManager {
         return history;
     }
 
-    async getCommitDiff(oldHash, newHash) {
-        const oldCommit = oldHash ? await this.getCommit(oldHash) : null;
-        const newCommit = await this.getCommit(newHash);
+    async getCommitDiff(oldCommitId, newCommitId) {
+        // Validate that both commit IDs are strings
+        if (typeof oldCommitId !== 'string' || typeof newCommitId !== 'string') {
+            throw new TypeError('Commit IDs must be strings');
+        }
+        const oldCommit = await this.getObject(oldCommitId);
+        const newCommit = await this.getObject(newCommitId);
 
         const oldTree = oldCommit ? JSON.parse(await this.getObject(oldCommit.tree)) : {};
         const newTree = JSON.parse(await this.getObject(newCommit.tree));
@@ -107,12 +111,16 @@ class CommitManager {
         return changes;
     }
 
-    async getObject(hash) {
-        const objectPath = path.join(this.objectsPath, hash);
+    async getObject(objectId) {
+        // Validate that objectId is a string
+        if (typeof objectId !== 'string') {
+            throw new TypeError(`Invalid objectId type. Expected string, received ${typeof objectId}`);
+        }
+        const objectPath = path.join(this.objectsPath, objectId);
         try {
             return await fs.readFile(objectPath, 'utf8');
         } catch (error) {
-            throw new ObjectNotFoundError(hash);
+            throw new ObjectNotFoundError(objectId);
         }
     }
 
