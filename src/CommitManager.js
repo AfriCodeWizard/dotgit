@@ -78,11 +78,14 @@ class CommitManager {
         if (typeof oldCommitId !== 'string' || typeof newCommitId !== 'string') {
             throw new TypeError('Commit IDs must be strings');
         }
-        const oldCommit = await this.getObject(oldCommitId);
-        const newCommit = await this.getObject(newCommitId);
 
-        const oldTree = oldCommit ? JSON.parse(await this.getObject(oldCommit.tree)) : {};
-        const newTree = JSON.parse(await this.getObject(newCommit.tree));
+        // Retrieve the commit objects
+        const oldCommit = await this.getCommit(oldCommitId);
+        const newCommit = await this.getCommit(newCommitId);
+
+        // Assuming oldCommit.tree and newCommit.tree are valid
+        const oldTree = oldCommit ? oldCommit.tree : {};
+        const newTree = newCommit.tree;
 
         const changes = {
             added: [],
@@ -100,11 +103,9 @@ class CommitManager {
         }
 
         // Find deleted files
-        if (oldTree) {
-            for (const path of Object.keys(oldTree)) {
-                if (!newTree[path]) {
-                    changes.deleted.push(path);
-                }
+        for (const path of Object.keys(oldTree)) {
+            if (!newTree[path]) {
+                changes.deleted.push(path);
             }
         }
 

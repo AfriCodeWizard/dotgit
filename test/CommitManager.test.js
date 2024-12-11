@@ -108,6 +108,9 @@ describe('CommitManager', () => {
             };
             const hash2 = await commitManager.createCommit(tree2, 'Second commit', hash1);
 
+            // Debug log to check commit IDs
+            console.log('hash1:', hash1, 'hash2:', hash2);
+
             const diff = await commitManager.getCommitDiff(hash1, hash2);
             expect(diff.modified).to.include('test.txt');
             expect(diff.added).to.include('new.txt');
