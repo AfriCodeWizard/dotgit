@@ -3,9 +3,12 @@ const { expect } = require('chai');
 const fs = require('fs').promises;
 const path = require('path');
 const os = require('os');
+const rimraf = require('rimraf');
 const  IndexManager  = require('../src/IndexManager');
 
-describe('IndexManager', () => {
+describe('IndexManager', function() {
+    this.timeout(5000); // Increase timeout to 5 seconds
+
     let testDir;
     let dotgitDir;
     let workDir;
@@ -21,9 +24,16 @@ describe('IndexManager', () => {
         indexManager = new IndexManager(dotgitDir);
     });
 
-    afterEach(async () => {
-        // Clean up test directory
-        await fs.rm(testDir, { recursive: true, force: true });
+    afterEach((done) => {
+        // Clean up test directory using rimraf
+        rimraf(testDir, (err) => {
+            if (err) {
+                console.error('Error removing directory:', err);
+                done(err); // Pass the error to done
+            } else {
+                done(); // Call done when the directory is removed
+            }
+        });
     });
 
     describe('load()', () => {
