@@ -29,12 +29,13 @@ class IndexManager {
                 await release();
             }
         } catch (error) {
-            if (error.code !== 'ENOENT') {
-                logger.error(`Failed to load index: ${error.message}`);
-                throw error;
+            if (error.code === 'ENOENT') {
+                // File does not exist, create an empty index
+                this.entries = new Map();
+            } else {
+                // Handle JSON parsing errors
+                throw new Error('Failed to load index: ' + error.message);
             }
-            // Initialize empty index if file doesn't exist
-            this.entries = new Map();
         }
     }
 
