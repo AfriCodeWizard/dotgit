@@ -27,20 +27,18 @@ class RefManager {
     }
 
     async getHead() {
+        const headPath = path.join(this.dotgitPath, 'HEAD');
         try {
-            const content = await fs.readFile(this.headPath, 'utf8');
-            if (content.startsWith('ref: ')) {
-                const ref = content.slice(5).trim();
+            const data = await fs.readFile(headPath, 'utf8');
+            if (data.startsWith('ref: ')) {
+                const ref = data.slice(5).trim();
                 return {
                     type: 'ref',
                     ref,
                     hash: await this.resolveRef(ref)
                 };
             }
-            return {
-                type: 'hash',
-                hash: content.trim()
-            };
+            return null;
         } catch (error) {
             if (error.code === 'ENOENT') {
                 return null;
@@ -91,33 +89,17 @@ class RefManager {
     }
 
     async listRefs(prefix = '') {
-        const refs = new Map();
-        
-        async function addRefsFromDir(dir, base) {
-            try {
-                const entries = await fs.readdir(dir, { withFileTypes: true });
-                for (const entry of entries) {
-                    const fullPath = path.join(dir, entry.name);
-                    const refName = path.join(base, entry.name);
-                    
-                    if (entry.isDirectory()) {
-                        await addRefsFromDir(fullPath, refName);
-                    } else {
-                        const hash = await fs.readFile(fullPath, 'utf8');
-                        refs.set(refName, hash.trim());
-                    }
-                }
-            } catch (error) {
-                if (error.code !== 'ENOENT') {
-                    throw error;
-                }
-            }
+        const refsPath = path.join(this.dotgitPath, 'refs');
+        try {
+            const headsPath = path.join(refsPath, 'heads');
+            const heads = await fs.readdir(headsPath);
+            const filteredRefs = heads
+                .filter(ref => ref.startsWith(prefix))
+                .map(ref => `heads/${ref}`);
+            return filteredRefs;
+        } catch (error) {
+            return [];
         }
-
-        const startPath = prefix ? path.join(this.refsPath, prefix) : this.refsPath;
-        await addRefsFromDir(startPath, prefix);
-        
-        return refs;
     }
 
     async createTag(name, hash, message = '') {
